@@ -172,7 +172,6 @@ func (a *APIServer) runUserCode(ctx context.Context, logger *taggedLogger) (stri
 	err := cmd.Run()
 
 	// Log output from user cmd, line-by-line, whether or not cmd errored
-	logger.Logf("running user code")
 	logscanner := bufio.NewScanner(&userlog)
 	for logscanner.Scan() {
 		logger.Logf(logscanner.Text())
@@ -368,7 +367,6 @@ func (a *APIServer) Process(ctx context.Context, req *ProcessRequest) (resp *Pro
 	a.Lock()
 	defer a.Unlock()
 	logger := a.getTaggedLogger(req)
-	logger.Logf("Received request")
 
 	// Hash inputs and check if output is in s3 already. Note: ppsserver sorts
 	// inputs by input name for both jobs and pipelines, so this hash is stable
@@ -379,14 +377,12 @@ func (a *APIServer) Process(ctx context.Context, req *ProcessRequest) (resp *Pro
 	}
 	if _, err := a.pachClient.InspectTag(ctx, &pfs.Tag{tag}); err == nil {
 		// We've already computed the output for these inputs. Return immediately
-		logger.Logf("skipping input, as it's already been processed")
 		return &ProcessResponse{
 			Tag: &pfs.Tag{tag},
 		}, nil
 	}
 
 	// Download input data
-	logger.Logf("input has not been processed, downloading data")
 	puller := filesync.NewPuller()
 	if err := a.downloadData(req.Data, puller); err != nil {
 		return nil, err
@@ -406,9 +402,7 @@ func (a *APIServer) Process(ctx context.Context, req *ProcessRequest) (resp *Pro
 	if err := os.MkdirAll(client.PPSOutputPath, 0666); err != nil {
 		return nil, err
 	}
-	logger.Logf("beginning to process user input")
 	userlog, err := a.runUserCode(ctx, logger)
-	logger.Logf("finished processing user input")
 	if err != nil {
 		return &ProcessResponse{
 			Log: userlog,
